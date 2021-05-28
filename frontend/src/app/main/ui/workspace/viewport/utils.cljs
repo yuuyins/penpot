@@ -6,12 +6,12 @@
 
 (ns app.main.ui.workspace.viewport.utils
   (:require
-   [app.util.dom :as dom]
-   [app.common.geom.point :as gpt]
-   [cuerdas.core :as str]
    [app.common.data :as d]
+   [app.common.geom.point :as gpt]
+   [app.common.math :as mth]
    [app.main.ui.cursors :as cur]
-   ))
+   [app.util.dom :as dom]
+   [cuerdas.core :as str]))
 
 (defn update-transform [node shapes modifiers]
   (doseq [{:keys [id type]} shapes]
@@ -52,7 +52,8 @@
     (-> (gpt/subtract pt brect)
         (gpt/divide zoom)
         (gpt/add box)
-        (gpt/round 0))))
+        (update :x mth/half-round)
+        (update :y mth/half-round))))
 
 (defn get-cursor [cursor]
   (case cursor

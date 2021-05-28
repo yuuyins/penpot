@@ -185,7 +185,9 @@
 
 (defn round
   "Change the precision of the point coordinates."
-  ([point] (round point 0))
+  ([point]
+   (round point 0))
+
   ([{:keys [x y] :as p} decimanls]
    (assert (point? p))
    (assert (number? decimanls))
