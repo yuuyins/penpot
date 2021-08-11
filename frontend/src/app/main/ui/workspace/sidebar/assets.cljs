@@ -1515,6 +1515,17 @@
                 (st/emit! (dwl/sync-file (:id file) (:id file))))
               (st/emit! (dwu/commit-undo-transaction)))))]
 
+    (mf/use-effect
+      (mf/deps colors typographies media components)
+      (fn []
+        (when-not (str/empty? (:term filters))
+          (st/emit! (dwl/show-assets
+                      (:id file)
+                      {:components components
+                       :graphics media
+                       :colors colors
+                       :typographies typographies})))))
+
     [:div.tool-window {:on-context-menu #(dom/prevent-default %)
                        :on-click unselect-all}
      [:div.tool-window-bar.library-bar

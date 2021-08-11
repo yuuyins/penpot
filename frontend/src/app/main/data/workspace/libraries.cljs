@@ -75,6 +75,31 @@
     (update [_ state]
       (assoc-in state [:workspace-local :assets-files-open file-id :groups box path] open?))))
 
+(defn show-assets
+  [file-id asset-boxes]
+  (ptk/reify ::show-assets
+    ptk/UpdateEvent
+    (update [_ state]
+      (js/console.log "file-id" (clj->js file-id))
+      (js/console.log "asset-boxes" (clj->js asset-boxes))
+      (let [open-assets (fn [open box assets]
+                          (reduce (fn [open asset]
+                                    (assoc-in open [box (:path asset)] true))
+                                  state
+                                  assets))
+
+            open-box (fn [state [box assets]]
+                       (js/console.log "box" (clj->js box))
+                       (js/console.log "assets" (clj->js assets))
+                       (update-in state [:workspace-local :assets-files-open file-id]
+                                  (fn [open]
+                                    (-> open
+                                        (assoc :library true)
+                                        (assoc box true)
+                                        (open-assets box assets)))))]
+
+      (reduce open-box state asset-boxes)))))
+
 (defn default-color-name [color]
   (or (:color color)
       (case (get-in color [:gradient :type])
