@@ -24,18 +24,21 @@
   (vary-meta changes assoc ::objects objects))
 
 (defn add-obj
-  ([changes obj index]
-   (add-obj changes (assoc obj ::index index)))
+  ([changes obj] (add-obj changes obj {}))
 
-  ([changes obj]
+  ([changes obj opts]
+   (let [index          (get opts :index (::index obj))
+         ignore-touched (get opts :ignore-touched false)]
+
    (let [add-change
-         {:type      :add-obj
-          :id        (:id obj)
-          :page-id   (::page-id (meta changes))
-          :parent-id (:parent-id obj)
-          :frame-id  (:frame-id obj)
-          :index     (::index obj)
-          :obj       (dissoc obj ::index :parent-id)}
+         {:type           :add-obj
+          :id             (:id obj)
+          :page-id        (::page-id (meta changes))
+          :parent-id      (:parent-id obj)
+          :frame-id       (:frame-id obj)
+          :index          index
+          :obj            (dissoc obj ::index :parent-id)
+          :ignore-touched ignore-touched}
 
          del-change
          {:type :del-obj
@@ -44,7 +47,30 @@
 
      (-> changes
          (update :redo-changes conj add-change)
-         (update :undo-changes d/preconj del-change)))))
+         (update :undo-changes d/preconj del-change))))))
+
+;; (defn add-obj
+;;   ([changes obj index]
+;;    (add-obj changes (assoc obj ::index index)))
+;;
+;;   ([changes obj]
+;;    (let [add-change
+;;          {:type      :add-obj
+;;           :id        (:id obj)
+;;           :page-id   (::page-id (meta changes))
+;;           :parent-id (:parent-id obj)
+;;           :frame-id  (:frame-id obj)
+;;           :index     (::index obj)
+;;           :obj       (dissoc obj ::index :parent-id)}
+;;
+;;          del-change
+;;          {:type :del-obj
+;;           :id (:id obj)
+;;           :page-id (::page-id (meta changes))}]
+;;
+;;      (-> changes
+;;          (update :redo-changes conj add-change)
+;;          (update :undo-changes d/preconj del-change)))))
 
 (defn change-parent
   [changes parent-id shapes]

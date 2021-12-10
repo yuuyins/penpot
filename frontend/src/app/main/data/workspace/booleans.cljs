@@ -10,7 +10,7 @@
    [app.common.data :as d]
    [app.common.geom.shapes :as gsh]
    [app.common.pages :as cp]
-   [app.common.pages.changes-builder :as cb]
+   [app.common.pages.changes-builder :as pcb]
    [app.common.path.shapes-to-path :as stp]
    [app.common.uuid :as uuid]
    [app.main.data.workspace.changes :as dch]
@@ -94,10 +94,10 @@
         (when-not (empty? shapes)
           (let [[boolean-data index] (create-bool-data bool-type name shapes objects)
                 shape-id (:id boolean-data)
-                changes (-> (cb/empty-changes it page-id)
-                            (cb/with-objects objects)
-                            (cb/add-obj boolean-data index)
-                            (cb/change-parent shape-id shapes))]
+                changes (-> (pcb/empty-changes it page-id)
+                            (pcb/with-objects objects)
+                            (pcb/add-obj boolean-data {:index index})
+                            (pcb/change-parent shape-id shapes))]
             (rx/of (dch/commit-changes changes)
                    (dwc/select-shapes (d/ordered-set shape-id)))))))))
 

@@ -1667,28 +1667,35 @@
                   unames    (-> (wsh/lookup-page-objects state page-id)
                                 (dwc/retrieve-used-names)) ;; TODO: move this calculation inside prepare-duplicate-changes?
 
-                  rchanges  (->> (dws/prepare-duplicate-changes all-objects page-id unames selected delta)
-                                 (mapv (partial process-rchange media-idx))
-                                 (mapv (partial change-add-obj-index paste-objects selected index)))
+                  [changes ids-map]
+                  (->> (dws/prepare-duplicate-changes all-objects page-id unames selected delta it)
+                       (mapv (partial process-rchange media-idx))
+                       (mapv (partial change-add-obj-index paste-objects selected index)))
 
-                  uchanges  (mapv #(array-map :type :del-obj :page-id page-id :id (:id %))
-                                  (reverse rchanges))
+                  ;; uchanges  (mapv #(array-map :type :del-obj :page-id page-id :id (:id %))
+                  ;;                 (reverse rchanges))
 
                   ;; Adds a reg-objects operation so the groups are updated. We add all the new objects
-                  new-objects-ids (->> rchanges (filter #(= (:type %) :add-obj)) (mapv :id))
+                  ;; new-objects-ids (->> rchanges (filter #(= (:type %) :add-obj)) (mapv :id))
+                  ;;
+                  ;; rchanges (conj rchanges {:type :reg-objects
+                  ;;                          :page-id page-id
+                  ;;                          :shapes new-objects-ids})
 
-                  rchanges (conj rchanges {:type :reg-objects
-                                           :page-id page-id
-                                           :shapes new-objects-ids})
+                  selected (->> (map #(get ids-map % %) selected)
+                                (into (d/ordered-set)))
 
-                  selected  (->> rchanges
-                                 (filter #(selected (:old-id %)))
-                                 (map #(get-in % [:obj :id]))
-                                 (into (d/ordered-set)))]
+                  ;; selected  (->> rchanges
+                  ;;                (filter #(selected (:old-id %)))
+                  ;;                (map #(get-in % [:obj :id]))
+                  ;;                (into (d/ordered-set)))
+                  ]
 
-              (rx/of (dch/commit-changes {:redo-changes rchanges
-                                          :undo-changes uchanges
-                                          :origin it})
+              (rx/of (dch/commit-changes changes
+                                         ;; {:redo-changes rchanges
+                                         ;;  :undo-changes uchanges
+                                         ;;  :origin it}
+                                         )
                      (dwc/select-shapes selected))))]
     (ptk/reify ::paste-shape
       ptk/WatchEvent
