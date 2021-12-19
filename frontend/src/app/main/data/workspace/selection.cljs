@@ -358,25 +358,19 @@
           changes     (pcb/add-obj changes new-obj {:ignore-touched true})
 
           children-changes
-          (loop [changes changes
-                 cid     (first (:shapes obj))
-                 cids    (rest (:shapes obj))]
-            (if (nil? cid)
-              changes
-              (let [obj (get objects cid)]
-                (recur
-                 (prepare-duplicate-shape-change changes
-                                                 objects
-                                                 page-id
-                                                 unames
-                                                 update-unames!
-                                                 ids-map
-                                                 obj
-                                                 delta
-                                                 frame-id
-                                                 new-id)
-                 (first cids)
-                 (rest cids)))))]
+          (reduce (fn [changes child]
+                    (prepare-duplicate-shape-change changes
+                                                    objects
+                                                    page-id
+                                                    unames
+                                                    update-unames!
+                                                    ids-map
+                                                    child
+                                                    delta
+                                                    frame-id
+                                                    new-id))
+                  changes
+                  (map #(get objects %) (:shapes obj)))]
 
       children-changes
       ;; (into [{:type :add-obj
@@ -396,9 +390,6 @@
         frame-name (dwc/generate-unique-name @unames (:name obj))
         _          (update-unames! frame-name)
 
-        sch        (->> (map #(get objects %) (:shapes obj))
-                        (mapcat #(prepare-duplicate-shape-change changes objects page-id unames update-unames! ids-map % delta new-id new-id)))
-
         new-frame  (-> obj
                       (assoc :id new-id
                              :name frame-name
@@ -407,14 +398,39 @@
                       (geom/move delta)
                       (d/update-when :interactions #(cti/remap-interactions % ids-map objects)))
 
-        fch {:type :add-obj
-             :old-id (:id obj)
-             :page-id page-id
-             :id new-id
-             :frame-id uuid/zero
-             :obj new-frame}]
+        changes    (pcb/add-obj changes new-frame)
 
-    (into [fch] sch)))
+        children-changes
+        (reduce (fn [changes child]
+                  (prepare-duplicate-shape-change changes
+                                                  objects
+                                                  page-id
+                                                  unames
+                                                  update-unames!
+                                                  ids-map
+                                                  child
+                                                  delta
+                                                  new-id
+                                                  new-id))
+                changes
+                (map #(get objects %) (:shapes obj)))]
+
+        ;; (->> (map #(get objects %) (:shapes obj))
+        ;;      (mapcat #(prepare-duplicate-shape-change changes
+        ;;                                               objects
+        ;;                                               page-id
+        ;;                                               unames
+        ;;                                               update-unames!
+        ;;                                               ids-map
+        ;;                                               %
+        ;;                                               delta
+        ;;                                               new-id
+        ;;                                               new-id)))]
+
+    (js/console.log "children-changes" (clj->js children-changes))
+    children-changes))
+
+    ;; (into [fch] sch)))
 
 (defn clear-memorize-duplicated
   []
