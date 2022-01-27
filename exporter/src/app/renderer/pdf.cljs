@@ -13,6 +13,7 @@
    [app.common.logging :as l]
    [app.common.spec :as us]
    [app.config :as cf]
+   [app.renderer.svg :refer [render-object]]
    [app.util.shell :as sh]
    [cljs.spec.alpha :as s]
    [lambdaisland.uri :as u]
@@ -34,38 +35,15 @@
     data))
 
 (defn pdf-from-object
-  [{:keys [file-id page-id object-id token scale type save-path]}]
-  (letfn [(handle [page]
-            (let [path   (str "/render-object/" file-id "/" page-id "/" object-id)
-                  uri    (-> (u/uri (cf/get :public-uri))
-                             (assoc :path "/")
-                             (assoc :query "essential=t")
-                             (assoc :fragment path))
-
-                  cookie (create-cookie uri token)]
-              (pdf-from page (str uri) cookie)))
-
-          (pdf-from [page uri cookie]
-            (l/info :uri uri)
-            (p/let [tdpath   (sh/create-tmpdir! "pdfexport-")
-                    tfpath   (path/join tdpath (str file-id))
-                    pngpath  (str tfpath ".png")
-                    pdfpath  (str tfpath ".pdf")
-                    options  {:cookie cookie}]
-
-              (bw/configure-page! page options)
-              (bw/navigate! page uri)
-              (bw/wait-for page "#screenshot")
-              (p/let [dom (bw/select page "#screenshot")]
-                (bw/screenshot dom {:path pngpath
-                                    :full-page? true}))
-
-              (sh/run-cmd! (str "convert " pngpath " -alpha off " pngpath))
-              (sh/run-cmd! (str "ocrmypdf -l spa " pngpath " " pdfpath " --image-dpi=96 --output-type pdfa --pdfa-image-compression lossless"))
-              (p/let [content (sh/read-file pdfpath)]
-                (clean-tmp-data tdpath content))))]
-
-    (bw/exec! handle)))
+  [svg-content {:keys [file-id]}]
+  (p/let [tdpath (sh/create-tmpdir! "pdfexport-")
+          tfpath (path/join tdpath (str file-id))
+          svgpath  (str tfpath ".svg")
+          pdfpath  (str tfpath ".pdf")]
+    (sh/write-file! svgpath svg-content)
+    (sh/run-cmd! (str "cairosvg -o " pdfpath " " svgpath))
+    (p/let [content (sh/read-file pdfpath)]
+      (clean-tmp-data tdpath content))))
 
 (s/def ::name ::us/string)
 (s/def ::suffix ::us/string)
@@ -84,7 +62,8 @@
 (defn render
   [params]
   (us/assert ::render-params params)
-  (p/let [content (pdf-from-object params)]
+  (p/let [svg-content (render-object params)
+          content (pdf-from-object svg-content params)]
     {:content content
      :filename (or (:filename params)
                    (str (:name params)
