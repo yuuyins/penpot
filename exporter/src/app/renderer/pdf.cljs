@@ -7,11 +7,13 @@
 (ns app.renderer.pdf
   "A pdf renderer."
   (:require
+   ["path" :as path]
    [app.browser :as bw]
    [app.common.exceptions :as ex :include-macros true]
    [app.common.logging :as l]
    [app.common.spec :as us]
    [app.config :as cf]
+   [app.util.shell :as sh]
    [cljs.spec.alpha :as s]
    [lambdaisland.uri :as u]
    [promesa.core :as p]))
@@ -24,6 +26,12 @@
     {:domain domain
      :key "auth-token"
      :value token}))
+
+(defn- clean-tmp-data
+  [tdpath data]
+  (p/do!
+    (sh/rmdir! tdpath)
+    data))
 
 (defn pdf-from-object
   [{:keys [file-id page-id object-id token scale type save-path]}]
@@ -39,18 +47,23 @@
 
           (pdf-from [page uri cookie]
             (l/info :uri uri)
-            (p/let [options {:cookie cookie}]
+            (p/let [tdpath   (sh/create-tmpdir! "pdfexport-")
+                    tfpath   (path/join tdpath (str file-id))
+                    pngpath  (str tfpath ".png")
+                    pdfpath  (str tfpath ".pdf")
+                    options  {:cookie cookie}]
+
               (bw/configure-page! page options)
               (bw/navigate! page uri)
               (bw/wait-for page "#screenshot")
-              ;; taking png screenshot before pdf, helps to make the
-              ;; pdf rendering works as expected.
               (p/let [dom (bw/select page "#screenshot")]
-                (bw/screenshot dom {:full-page? true}))
+                (bw/screenshot dom {:path pngpath
+                                    :full-page? true}))
 
-              (if save-path
-                (bw/pdf page {:save-path save-path})
-                (bw/pdf page))))]
+              (sh/run-cmd! (str "convert " pngpath " -alpha off " pngpath))
+              (sh/run-cmd! (str "ocrmypdf -l spa " pngpath " " pdfpath " --image-dpi=96 --output-type pdfa --pdfa-image-compression lossless"))
+              (p/let [content (sh/read-file pdfpath)]
+                (clean-tmp-data tdpath content))))]
 
     (bw/exec! handle)))
 

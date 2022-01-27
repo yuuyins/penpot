@@ -63,14 +63,15 @@
 
 (defn screenshot
   ([frame] (screenshot frame nil))
-  ([frame {:keys [full-page? omit-background? type]
+  ([frame {:keys [path full-page? omit-background? type]
            :or {type "png"
                 full-page? false
                 omit-background? false}}]
    (let [options (-> (obj/new)
                      (obj/set! "type" (name type))
                      (obj/set! "omitBackground" omit-background?)
-                     (cond-> full-page? (-> (obj/set! "fullPage" true)
+                     (cond-> path (obj/set! "path" path)
+                             full-page? (-> (obj/set! "fullPage" true)
                                             (obj/set! "clip" nil))))]
      (.screenshot ^js frame options))))
 
