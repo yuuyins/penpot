@@ -61,7 +61,9 @@
                                     :full-page? true}))
 
               (sh/run-cmd! (str "convert " pngpath " -alpha off " pngpath))
-              (sh/run-cmd! (str "ocrmypdf -l spa " pngpath " " pdfpath " --image-dpi=96 --output-type pdfa --pdfa-image-compression lossless"))
+              ;; (sh/run-cmd! (str "ocrmypdf -l spa " pngpath " " pdfpath " -O0 --image-dpi=96 --output-type pdfa --pdfa-image-compression lossless"))
+              ;; (sh/run-cmd! (str "tesseract " pngpath " " tfpath " pdf"))
+              (sh/run-cmd! (str "img2pdf " pngpath " -o " pdfpath))
               (p/let [content (sh/read-file pdfpath)]
                 (clean-tmp-data tdpath content))))]
 
