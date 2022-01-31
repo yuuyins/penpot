@@ -7,7 +7,8 @@
 (ns app.browser
   (:require
    ["generic-pool" :as gp]
-   ["puppeteer-core" :as pp]
+   ["puppeteer" :as pp]
+   ;; ["puppeteer-core" :as pp]
    [app.common.data :as d]
    [app.common.logging :as l]
    [app.common.uuid :as uuid]
@@ -110,16 +111,26 @@
        "--disable-accelerated-2d-canvas"
        "--disable-gpu"])
 
+(def default-firefox-args
+  #js ["--disable-dev-shm-usage"
+       "--disable-accelerated-2d-canvas"
+       "--no-sandbox"
+       "--disable-gpu"])
+
 (def browser-pool-factory
   (letfn [(create []
-            (let [path (cf/get :browser-executable-path "/usr/bin/google-chrome")]
-              (-> (pp/launch #js {:executablePath path :args default-chrome-args})
+            ;; (let [path (cf/get :browser-executable-path "/usr/bin/google-chrome")]
+            (let [path (cf/get :browser-executable-path "/usr/bin/firefox")]
+              (-> (pp/launch #js {:product "firefox" :args default-firefox-args :dumpio true :headless false})
                   (p/then (fn [browser]
                             (let [id (deref pool-browser-id)]
                               (l/info :origin "factory" :action "create" :browser-id id)
                               (unchecked-set browser "__id" id)
                               (swap! pool-browser-id inc)
-                              browser))))))
+                              browser)))
+                  (p/catch (fn [error]
+                             (js/console.log "error" (clj->js error))
+                             )))))
           (destroy [obj]
             (let [id (unchecked-get obj "__id")]
               (l/info :origin "factory" :action "destroy" :browser-id id)

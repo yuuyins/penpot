@@ -9,6 +9,7 @@
   "author": "UXBOX LABS SL",
   "license": "SEE LICENSE IN <LICENSE>",
   "dependencies": {
+    "@playwright/test": "^1.18.1",
     "@sentry/node": "^6.16.1",
     "@sentry/tracing": "^6.16.1",
     "cookies": "^0.8.0",
@@ -16,8 +17,9 @@
     "inflation": "^2.0.0",
     "jszip": "^3.7.0",
     "luxon": "^2.3.0",
-    "puppeteer-core": "^13.1.1",
+    "puppeteer": "^13.1.2",
     "raw-body": "^2.4.2",
+    "selenium-webdriver": "^4.1.1",
     "xml-js": "^1.6.11",
     "xregexp": "^5.0.2"
   },

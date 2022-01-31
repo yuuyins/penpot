@@ -41,7 +41,8 @@
             (l/info :uri uri)
             (p/let [options {:cookie cookie}]
               (bw/configure-page! page options)
-              (bw/navigate! page uri)
+              (-> (bw/navigate! page uri)
+                  (p/catch #(js/console.log "****error" %)))
               (bw/wait-for page "#screenshot")
               ;; taking png screenshot before pdf, helps to make the
               ;; pdf rendering works as expected.
