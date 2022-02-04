@@ -10,7 +10,7 @@
    [app.common.data :as d]
    [app.common.geom.shapes :as gsh]
    [app.common.math :as mth]
-   [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.text :as txt]
    [app.main.data.workspace.changes :as dch]
    [app.main.data.workspace.common :as dwc]
@@ -161,7 +161,7 @@
 
             update-fn #(update-shape % txt/is-root-node? attrs/merge attrs)
             shape-ids (cond (= (:type shape) :text)  [id]
-                            (= (:type shape) :group) (cp/get-children id objects))]
+                            (= (:type shape) :group) (cph/get-children-ids objects id))]
 
         (rx/of (dch/update-shapes shape-ids update-fn))))))
 
@@ -187,7 +187,7 @@
 
                 update-fn #(update-shape % txt/is-paragraph-node? merge-fn attrs)
                 shape-ids (cond (= (:type shape) :text)  [id]
-                                (= (:type shape) :group) (cp/get-children id objects))]
+                                (= (:type shape) :group) (cph/get-children-ids objects id))]
 
             (rx/of (dch/update-shapes shape-ids update-fn))))))))
 
@@ -209,7 +209,7 @@
 
               update-fn #(update-shape % update-node? attrs/merge attrs)
               shape-ids (cond (= (:type shape) :text)  [id]
-                              (= (:type shape) :group) (cp/get-children id objects))]
+                              (= (:type shape) :group) (cph/get-children-ids objects id))]
           (rx/of (dch/update-shapes shape-ids update-fn)))))))
 
 ;; --- RESIZE UTILS

@@ -11,6 +11,7 @@
    [app.common.geom.shapes :as gsh]
    [app.common.logging :as log]
    [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.spec :as us]
    [app.common.spec.interactions :as csi]
    [app.common.spec.page :as csp]
@@ -58,9 +59,11 @@
 
 ;; --- Common Helpers & Events
 
+;; TODO: looks duplicate
+
 (defn get-frame-at-point
   [objects point]
-  (let [frames (cp/select-frames objects)]
+  (let [frames (cph/get-frames objects)]
     (d/seek #(gsh/has-point? % point) frames)))
 
 
@@ -195,9 +198,9 @@
       (let [expand-fn (fn [expanded]
                         (merge expanded
                           (->> ids
-                               (map #(cp/get-parents % objects))
+                               (map #(cph/get-parents % objects))
                                flatten
-                               (filter #(not= % uuid/zero))
+                               (remove cph/root-frame?)
                                (map (fn [id] {id true}))
                                (into {}))))]
         (update-in state [:workspace-local :expanded] expand-fn)))))
@@ -264,9 +267,9 @@
 
     ;; Calculate the frame over which we're drawing
     (let [position @ms/mouse-position
-          frame-id (:frame-id attrs (cp/frame-id-by-position objects position))
+          frame-id (:frame-id attrs (cph/frame-id-by-position objects position))
           shape (when-not (empty? selected)
-                  (cp/get-base-shape objects selected))]
+                  (cph/get-base-shape objects selected))]
 
       ;; When no shapes has been selected or we're over a different frame
       ;; we add it as the latest shape of that frame
@@ -274,7 +277,7 @@
         [frame-id frame-id nil]
 
         ;; Otherwise, we add it to next to the selected shape
-        (let [index (cp/position-on-parent (:id shape) objects)
+        (let [index (cph/get-position-on-parent objects (:id shape))
               {:keys [frame-id parent-id]} shape]
           [frame-id parent-id (inc index)])))))
 
@@ -352,8 +355,9 @@
     (watch [it state _]
       (let [page-id  (:current-page-id state)
             objects (wsh/lookup-page-objects state page-id)
-            to-move-shapes (->> (cp/select-toplevel-shapes objects {:include-frames? false})
-                                (filterv #(= (:frame-id %) uuid/zero))
+
+            to-move-shapes (->> (cph/get-immediate-children objects)
+                                (remove cph/frame-shape?)
                                 (mapv :id)
                                 (d/enumerate)
                                 (filterv (comp shapes second)))
@@ -390,7 +394,7 @@
             objects (wsh/lookup-page-objects state page-id)
             options (wsh/lookup-page-options state page-id)
 
-            ids     (cp/clean-loops objects ids)
+            ids     (cph/clean-loops objects ids)
             flows   (:flows options)
 
             groups-to-unmask
@@ -430,14 +434,14 @@
 
             all-parents
             (reduce (fn [res id]
-                      (into res (cp/get-parents id objects)))
+                      (into res (cph/get-parents id objects)))
                     (d/ordered-set)
                     ids)
 
             all-children
             (->> ids
                  (reduce (fn [res id]
-                           (into res (cp/get-children id objects)))
+                           (into res (cph/get-children id objects)))
                          [])
                  (reverse)
                  (into (d/ordered-set)))
@@ -459,7 +463,7 @@
                            {:type :add-obj
                             :id (:id item)
                             :page-id page-id
-                            :index (cp/position-on-parent id objects)
+                            :index (cph/get-position-on-parent objects id)
                             :frame-id (:frame-id item)
                             :parent-id (:parent-id item)
                             :obj item}))))
@@ -584,7 +588,7 @@
             y (:y data (- vbc-y (/ height 2)))
             page-id (:current-page-id state)
             frame-id (-> (wsh/lookup-page-objects state page-id)
-                         (cp/frame-id-by-position {:x frame-x :y frame-y}))
+                         (cph/frame-id-by-position {:x frame-x :y frame-y}))
             shape (-> (cp/make-minimal-shape type)
                       (merge data)
                       (merge {:x x :y y})

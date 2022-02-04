@@ -84,6 +84,7 @@
 
         ;; REFS
         viewport-ref      (mf/use-ref nil)
+        render-svg-ref    (mf/use-ref nil)
 
         ;; VARS
         disable-paste     (mf/use-var false)
@@ -204,6 +205,7 @@
        :width (:width vport 0)
        :height (:height vport 0)
        :view-box (utils/format-viewbox vbox)
+       :ref render-svg-ref
        :style {:background-color background
                :pointer-events "none"}}
 
@@ -213,6 +215,7 @@
        [:& (mf/provider embed/context) {:value true}
         ;; Render root shape
         [:& shapes/root-shape {:key page-id
+                               :render-svg-ref render-svg-ref
                                :objects base-objects
                                :active-frames @active-frames}]]]]
 

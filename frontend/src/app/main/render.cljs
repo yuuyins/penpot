@@ -19,7 +19,7 @@
    [app.common.geom.point :as gpt]
    [app.common.geom.shapes :as gsh]
    [app.common.math :as mth]
-   [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.uuid :as uuid]
    [app.config :as cfg]
    [app.main.fonts :as fonts]
@@ -59,12 +59,11 @@
 
 (defn- calculate-dimensions
   [{:keys [objects] :as data} vport]
-  (let [shapes (cp/select-toplevel-shapes objects {:include-frames? true
-                                                   :include-frame-children? false})
+  (let [shapes    (cph/get-immediate-children objects)
         to-finite (fn [val fallback] (if (not (mth/finite? val)) fallback val))
-        rect (cond->> (gsh/selection-rect shapes)
-               (some? vport)
-               (gal/adjust-to-viewport vport))]
+        rect      (cond->> (gsh/selection-rect shapes)
+                    (some? vport)
+                    (gal/adjust-to-viewport vport))]
     (-> rect
         (update :x to-finite 0)
         (update :y to-finite 0)
@@ -104,7 +103,7 @@
       (let [childs (mf/use-memo
                     (mf/deps (:id shape) objects)
                     (fn []
-                      (->> (cp/get-children (:id shape) objects)
+                      (->> (cph/get-children (:id shape) objects)
                            (select-keys objects))))]
         [:& bool-shape {:shape shape :childs childs}]))))
 
@@ -166,15 +165,12 @@
   [{:keys [data width height thumbnails? embed? include-metadata?] :as props
     :or {embed? false include-metadata? false}}]
   (let [objects (:objects data)
-        root    (get objects uuid/zero)
-        shapes
-        (->> (:shapes root)
-             (map #(get objects %)))
+        shapes  (cph/get-immediate-children objects)
 
         root-children
         (->> shapes
-             (filter #(not= :frame (:type %)))
-             (mapcat #(cp/get-object-with-children (:id %) objects)))
+             (remove cph/frame-shape?)
+             (mapcat #(cph/get-children-with-self objects (:id %))))
 
         vport   (when (and (some? width) (some? height))
                   {:width width :height height})
@@ -237,7 +233,7 @@
         objects
         (mf/with-memo [frame-id objects modifier]
           (let [update-fn #(assoc-in %1 [%2 :modifiers :displacement] modifier)]
-            (->> (cp/get-children frame-id objects)
+            (->> (cph/get-children frame-id objects)
                  (into [frame-id])
                  (reduce update-fn objects))))
 
@@ -280,7 +276,7 @@
         (mf/use-memo
          (mf/deps modifier objects group-id)
          (fn []
-           (let [modifier-ids (concat [group-id] (cp/get-children group-id objects))
+           (let [modifier-ids (concat [group-id] (cph/get-children group-id objects))
                  update-fn    #(assoc-in %1 [%2 :modifiers :displacement] modifier)
                  modifiers    (reduce update-fn {} modifier-ids)]
              (gsh/merge-modifiers objects modifiers))))
@@ -334,7 +330,7 @@
         (mf/use-memo
          (mf/deps modifier id objects)
          (fn []
-           (let [modifier-ids (concat [id] (cp/get-children id objects))
+           (let [modifier-ids (concat [id] (cph/get-children id objects))
                  update-fn    #(assoc-in %1 [%2 :modifiers :displacement] modifier)]
              (reduce update-fn objects modifier-ids))))
 

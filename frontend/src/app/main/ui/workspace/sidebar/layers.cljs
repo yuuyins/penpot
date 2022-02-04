@@ -7,7 +7,7 @@
 (ns app.main.ui.workspace.sidebar.layers
   (:require
    [app.common.data :as d]
-   [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.uuid :as uuid]
    [app.main.data.workspace :as dw]
    [app.main.data.workspace.common :as dwc]
@@ -160,7 +160,7 @@
           (if (= side :center)
             (st/emit! (dw/relocate-selected-shapes (:id item) 0))
             (let [to-index  (if (= side :top) (inc index) index)
-                  parent-id (cp/get-parent (:id item) objects)]
+                  parent-id (cph/get-parent objects (:id item))]
               (st/emit! (dw/relocate-selected-shapes parent-id to-index)))))
 
         on-hold

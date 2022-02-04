@@ -6,7 +6,7 @@
 
 (ns app.main.ui.workspace.sidebar.options.menus.component
   (:require
-   [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.main.data.modal :as modal]
    [app.main.data.workspace :as dw]
    [app.main.data.workspace.libraries :as dwl]
@@ -34,7 +34,7 @@
         libraries     (mf/deref refs/workspace-libraries)
         {:keys [component-id component-file]} values
 
-        component     (cp/get-component component-id component-file local-library libraries)
+        component     (cph/get-component component-id component-file local-library libraries)
 
         on-menu-click (mf/use-callback
                         (fn [event]

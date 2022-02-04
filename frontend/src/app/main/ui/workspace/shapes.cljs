@@ -12,7 +12,9 @@
   others are defined using a generic wrapper implemented in
   common."
   (:require
+   [app.common.data :as d]
    [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.uuid :as uuid]
    [app.main.refs :as refs]
    [app.main.ui.shapes.circle :as circle]
@@ -42,13 +44,11 @@
 (def image-wrapper (common/generic-wrapper-factory image/image-shape))
 (def rect-wrapper (common/generic-wrapper-factory rect/rect-shape))
 
-(defn make-is-moving-ref
-  [id]
-  (fn []
-    (let [check-moving (fn [local]
-                         (and (= :move (:transform local))
-                              (contains? (:selected local) id)))]
-      (l/derived check-moving refs/workspace-local))))
+(def ^:private only-shape-ids-xf
+  "Transforms a seq of shapes and removes all frames."
+  (comp
+   (remove #(= :frame (:type %)))
+   (map :id)))
 
 (mf/defc root-shape
   "Draws the root shape of the viewport and recursively all the shapes"
@@ -56,15 +56,15 @@
   [props]
   (let [objects       (obj/get props "objects")
         active-frames (obj/get props "active-frames")
-        root-shapes   (get-in objects [uuid/zero :shapes])
-        shapes        (->> root-shapes (mapv #(get objects %)))
-
-        root-children (->> shapes
-                           (filter #(not= :frame (:type %)))
-                           (mapcat #(cp/get-object-with-children (:id %) objects)))]
-
+        shapes        (cph/get-immediate-children objects)]
     [:*
-     [:& ff/fontfaces-style {:shapes root-children}]
+     ;; Render font faces only for shapes that are part of the root
+     ;; frame but don't belongs to any other frame.
+     (let [xform (comp
+                  (remove cph/frame-shape?)
+                  (mapcat #(cph/get-children-with-self objects (:id %))))]
+       [:& ff/fontfaces-style {:shapes (into [] xform shapes)}])
+
      (for [item shapes]
        (if (= (:type item) :frame)
          [:& frame-wrapper {:shape item

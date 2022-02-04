@@ -6,7 +6,7 @@
 
 (ns app.main.data.workspace.path.shapes-to-path
   (:require
-   [app.common.pages :as cp]
+   [app.common.pages.helpers :as cph]
    [app.common.pages.changes-builder :as cb]
    [app.common.path.shapes-to-path :as upsp]
    [app.main.data.workspace.changes :as dch]
@@ -24,7 +24,7 @@
 
             children-ids
             (into #{}
-                  (mapcat #(cp/get-children % objects))
+                  (mapcat #(cph/get-children-ids objects %))
                   selected)
 
             changes

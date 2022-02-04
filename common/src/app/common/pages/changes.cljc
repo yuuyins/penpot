@@ -206,7 +206,7 @@
             (let [invalid-targets (cph/calculate-invalid-targets shape-id objects)]
               (and (contains? objects shape-id)
                    (not (invalid-targets parent-id))
-                   (cph/valid-frame-target shape-id parent-id objects))))
+                   (cph/valid-frame-target? objects parent-id shape-id))))
 
           (insert-items [prev-shapes index shapes]
             (let [prev-shapes (or prev-shapes [])]

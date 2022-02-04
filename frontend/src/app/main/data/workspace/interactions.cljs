@@ -134,7 +134,7 @@
      (watch [_ state _]
        (let [page-id  (:current-page-id state)
              objects  (wsh/lookup-page-objects state page-id)
-             frame    (cph/get-frame shape objects)
+             frame    (cph/get-frame objects shape)
              flows    (get-in state [:workspace-data
                                      :pages-index
                                      page-id
@@ -278,7 +278,7 @@
                 overlay-pos (-> shape
                                 (get-in [:interactions index])
                                 :overlay-position)
-                orig-frame  (cph/get-frame shape objects)
+                orig-frame  (cph/get-frame objects shape)
                 frame-pos   (gpt/point (:x orig-frame) (:y orig-frame))
                 offset      (-> initial-pos
                                 (gpt/subtract overlay-pos)
