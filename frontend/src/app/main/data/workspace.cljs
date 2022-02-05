@@ -1027,7 +1027,7 @@
 
             ;; If we try to move a parent into a child we remove it
             ids      (filter #(not (cph/is-parent? objects parent-id %)) ids)
-            parents  (into #{parent-id} (map #(cph/get-parent % objects)) ids)
+            parents  (into #{parent-id} (map #(cph/get-parent-id objects %)) ids)
 
             groups-to-delete
             (loop [current-id  (first parents)
@@ -1045,7 +1045,7 @@
                            (empty? (remove removed-id? (:shapes group))))
 
                     ;; Adds group to the remove and check its parent
-                    (let [to-check (concat to-check [(cph/get-parent current-id objects)])]
+                    (let [to-check (concat to-check [(cph/get-parent-id objects current-id)])]
                       (recur (first to-check)
                              (rest to-check)
                              (conj removed-id? current-id)
@@ -1090,8 +1090,8 @@
                                                 (not (:component-root? shape)))
 
                             parent                 (get objects parent-id)
-                            component-shape        (cph/get-component-shape shape objects)
-                            component-shape-parent (cph/get-component-shape parent objects)
+                            component-shape        (cph/get-component-shape objects shape)
+                            component-shape-parent (cph/get-component-shape objects parent)
 
                             detach? (and instance-part? (not= (:id component-shape)
                                                               (:id component-shape-parent)))
@@ -1804,7 +1804,7 @@
           ;; Check if the shape is an instance whose master is defined in a
           ;; library that is not linked to the current file
           (foreign-instance? [shape paste-objects state]
-            (let [root         (cph/get-root-shape shape paste-objects)
+            (let [root         (cph/get-root-shape paste-objects shape)
                   root-file-id (:component-file root)]
               (and (some? root)
                    (not= root-file-id (:current-file-id state))

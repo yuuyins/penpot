@@ -198,7 +198,7 @@
           shape
 
           (nil? root)
-          (cph/get-root-shape shape objects)
+          (cph/get-root-shape objects shape)
 
           :else root)
 
@@ -208,7 +208,7 @@
           transformed-shape
 
           (nil? transformed-root)
-          (cph/get-root-shape transformed-shape objects)
+          (cph/get-root-shape objects transformed-shape)
 
           :else transformed-root)
 

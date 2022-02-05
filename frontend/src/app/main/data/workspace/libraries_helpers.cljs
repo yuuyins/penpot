@@ -71,8 +71,11 @@
     (get-in state [:workspace-libraries file-id :data])))
 
 (defn get-libraries
+  "Retrieve all libraries, including the local file."
   [state]
-  (get state :workspace-libraries))
+  (let [{:keys [id] :as local} (:workspace-data state)]
+    (-> (:workspace-libraries state)
+        (assoc id local))))
 
 (defn pretty-file
   [file-id state]
@@ -214,7 +217,7 @@
 (defn generate-detach-instance
   "Generate changes to remove the links between a shape and all its children
   with a component."
-  [shape-id container]
+  [container shape-id]
   (log/debug :msg "Detach instance" :shape-id shape-id :container (:id container))
   (let [shapes   (cph/get-children-with-self (:objects container) shape-id)
         rchanges (mapv (fn [obj]
@@ -399,11 +402,9 @@
 
 (defmethod generate-sync-shape :components
   [_ _ state container shape]
-  (generate-sync-shape-direct container
-                              (:id shape)
-                              (get-local-file state)
-                              (get-libraries state)
-                              false))
+  (let [shape-id  (:id shape)
+        libraries (get-libraries state)]
+    (generate-sync-shape-direct libraries container shape-id false)))
 
 (defn- generate-sync-text-shape
   [shape container update-node]
@@ -625,13 +626,12 @@
 (defn generate-sync-shape-direct
   "Generate changes to synchronize one shape that the root of a component
   instance, and all its children, from the given component."
-  [container shape-id local-library libraries reset?]
+  [libraries container shape-id reset?]
   (log/debug :msg "Sync shape direct" :shape (str shape-id) :reset? reset?)
   (let [shape-inst    (cph/get-shape container shape-id)
-        component     (cph/get-component (:component-id shape-inst)
+        component     (cph/get-component libraries
                                          (:component-file shape-inst)
-                                         local-library
-                                         libraries)
+                                         (:component-id shape-inst))
         shape-main    (cph/get-shape component (:shape-ref shape-inst))
 
         initial-root? (:component-root? shape-inst)
@@ -744,14 +744,15 @@
 (defn generate-sync-shape-inverse
   "Generate changes to update the component a shape is linked to, from
   the values in the shape and all its children."
-  [page-id shape-id local-library libraries]
+  ;; [page-id shape-id local-library libraries]
+
+  [libraries file page-id shape-id]
   (log/debug :msg "Sync shape inverse" :shape (str shape-id))
-  (let [container     (cph/get-container page-id :page local-library)
+  (let [container     (cph/get-container file :page page-id)
         shape-inst    (cph/get-shape container shape-id)
-        component     (cph/get-component (:component-id shape-inst)
+        component     (cph/get-component libraries
                                          (:component-file shape-inst)
-                                         local-library
-                                         libraries)
+                                         (:component-id shape-inst))
         shape-main    (cph/get-shape component (:shape-ref shape-inst))
 
         initial-root? (:component-root? shape-inst)

@@ -158,31 +158,22 @@
   (ptk/reify ::select-all
     ptk/WatchEvent
     (watch [_ state _]
-      (let [page-id      (:current-page-id state)
-            objects      (wsh/lookup-page-objects state page-id)
-            new-selected (let [selected-objs
-                               (->> (wsh/lookup-selected state)
-                                    (map (d/getf objects)))
+      (let [page-id  (:current-page-id state)
+            objects  (wsh/lookup-page-objects state page-id)
 
-                               frame-ids
-                               (into #{} (map :frame-id) selected-objs)
+            selected (let [frame-ids (into #{} (comp
+                                                (map (d/getf objects))
+                                                (map :frame-id))
+                                           (wsh/lookup-selected state))
+                           frame-id  (if (= 1 (count frame-ids))
+                                       (first frame-ids)
+                                       uuid/zero)]
+                       (cph/get-immediate-children objects frame-id))
 
-                               common-frame-id
-                               (when (= (count frame-ids) 1) (first frame-ids))]
+            selected (into (d/ordered-set)
+                           (remove :blocked)
+                           selected)]
 
-                           (if (and common-frame-id (not= common-frame-id uuid/zero))
-                             (-> (get objects common-frame-id) :shapes)
-                             (-> (cph/get-top-frame objects) :shapes)))
-
-            is-not-blocked (fn [shape-id] (not (get-in state [:workspace-data
-                                                              :pages-index page-id
-                                                              :objects shape-id
-                                                              :blocked] false)))
-
-            selected-ids (into lks/empty-linked-set
-                               (comp (filter some?)
-                                     (filter is-not-blocked))
-                               new-selected)]
         (rx/of (select-shapes selected-ids))))))
 
 (defn deselect-all

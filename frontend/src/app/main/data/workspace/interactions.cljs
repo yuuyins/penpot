@@ -11,6 +11,7 @@
    [app.common.pages.helpers :as cph]
    [app.common.spec :as us]
    [app.common.spec.interactions :as csi]
+
    [app.common.spec.page :as csp]
    [app.common.uuid :as uuid]
    [app.main.data.workspace.changes :as dch]
@@ -126,6 +127,14 @@
 
 ;; --- Interactions
 
+(defn- connected-frame?
+  "Check if some frame is origin or destination of any navigate interaction
+  in the page"
+  [objects frame-id]
+  (let [children (cph/get-children-with-self objects frame-id)]
+    (or (some csi/flow-origin? (map :interactions children))
+        (some #(csi/flow-to? % frame-id) (map :interactions (vals objects))))))
+
 (defn add-new-interaction
   ([shape] (add-new-interaction shape nil))
   ([shape destination]
@@ -149,7 +158,7 @@
                                              destination)]
                         (update shape :interactions
                                 csi/add-interaction new-interaction)))))
-           (when (and (not (cph/connected-frame? (:id frame) objects))
+           (when (and (not (connected-frame? objects (:id frame)))
                       (nil? flow))
              (rx/of (add-flow (:id frame))))))))))
 

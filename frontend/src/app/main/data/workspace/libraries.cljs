@@ -349,12 +349,22 @@
   (ptk/reify ::duplicate-component
     ptk/WatchEvent
     (watch [it state _]
-      (let [component      (cph/get-component id
-                                              (:current-file-id state)
-                                              (dwlh/get-local-file state)
-                                              nil)
-            all-components (vals (get-in state [:workspace-data :components]))
-            unames         (set (map :name all-components))
+      (let [
+            ;; component      (cph/get-component id
+            ;;                                   (:current-file-id state)
+            ;;                                   (dwlh/get-local-file state)
+            ;;                                   nil)
+
+            ;; component      (cph/get-component (dwlh/get-local-file state)
+            ;;                                   nil
+            ;;                                   (:current-file-id state)
+            ;;                                   id)
+
+            libraries      (dwlh/get-libraries state)
+            component      (cph/get-component libraries id)
+
+            all-components (-> state :workspace-data :components vals)
+            unames         (into #{} (map :name) all-components)
             new-name       (dwc/generate-unique-name unames (:name component))
 
             [new-shape new-shapes _updated-shapes]
@@ -405,9 +415,8 @@
   (ptk/reify ::instantiate-component
     ptk/WatchEvent
     (watch [it state _]
-      (let [local-library   (dwlh/get-local-file state)
-            libraries       (get state :workspace-libraries)
-            component       (cph/get-component component-id file-id local-library libraries)
+      (let [libraries       (dwlh/get-libraries state)
+            component       (cph/get-component libraries file-id component-id)
             component-shape (cph/get-shape component component-id)
 
             orig-pos  (gpt/point (:x component-shape) (:y component-shape))
@@ -483,13 +492,12 @@
   (ptk/reify ::detach-component
     ptk/WatchEvent
     (watch [it state _]
-      (let [local-library (dwlh/get-local-file state)
-            container (cph/get-container (get state :current-page-id)
-                                         :page
-                                         local-library)
+      (let [file      (dwlh/get-local-file state)
+            page-id   (get state :current-page-id)
+            container (cph/get-container file :page page-id)
 
             [rchanges uchanges]
-            (dwlh/generate-detach-instance id container)]
+            (dwlh/generate-detach-instance container id)]
 
         (rx/of (dch/commit-changes {:redo-changes rchanges
                                     :undo-changes uchanges
@@ -499,20 +507,19 @@
   (ptk/reify ::detach-selected-components
     ptk/WatchEvent
     (watch [it state _]
-      (let [page-id  (:current-page-id state)
-            objects  (wsh/lookup-page-objects state page-id)
-            local-library (dwlh/get-local-file state)
-            container (cph/get-container page-id :page local-library)
-
-            selected (->> state
-                          (wsh/lookup-selected)
-                          (cph/clean-loops objects))
+      (let [page-id   (:current-page-id state)
+            objects   (wsh/lookup-page-objects state page-id)
+            file      (dwlh/get-local-file state)
+            container (cph/get-container file :page page-id)
+            selected  (->> state
+                           (wsh/lookup-selected)
+                           (cph/clean-loops objects))
 
             [rchanges uchanges]
             (reduce (fn [changes id]
                       (dwlh/concat-changes
                        changes
-                       (dwlh/generate-detach-instance id container)))
+                       (dwlh/generate-detach-instance container id)))
                     dwlh/empty-changes
                     selected)]
 
@@ -558,21 +565,18 @@
     ptk/WatchEvent
     (watch [it state _]
       (log/info :msg "RESET-COMPONENT of shape" :id (str id))
-      (let [local-library (dwlh/get-local-file state)
-            libraries     (dwlh/get-libraries state)
-            container     (cph/get-container (get state :current-page-id)
-                                             :page
-                                             local-library)
+      (let [file      (dwlh/get-local-file state)
+            libraries (dwlh/get-libraries state)
+
+            page-id   (:current-page-id state)
+            container (cph/get-container file :page page-id)
+
             [rchanges uchanges]
-            (dwlh/generate-sync-shape-direct container
-                                             id
-                                             local-library
-                                             libraries
-                                             true)]
+            (dwlh/generate-sync-shape-direct libraries container id true)]
+
         (log/debug :msg "RESET-COMPONENT finished" :js/rchanges (log-changes
                                                                  rchanges
-                                                                 local-library))
-
+                                                                 file))
         (rx/of (dch/commit-changes {:redo-changes rchanges
                                     :undo-changes uchanges
                                     :origin it}))))))
@@ -591,18 +595,16 @@
   (ptk/reify ::update-component
     ptk/WatchEvent
     (watch [it state _]
+      ;; TODO
       (log/info :msg "UPDATE-COMPONENT of shape" :id (str id))
       (let [page-id       (get state :current-page-id)
-            local-library (dwlh/get-local-file state)
+            file          (dwlh/get-local-file state)
             libraries     (dwlh/get-libraries state)
 
             [rchanges uchanges]
-            (dwlh/generate-sync-shape-inverse page-id
-                                              id
-                                              local-library
-                                              libraries)
+            (dwlh/generate-sync-shape-inverse libraries file page-id id)
 
-            container (cph/get-container page-id :page local-library)
+            container (cph/get-container file :page page-id)
             shape     (cph/get-shape container id)
             file-id   (:component-file shape)
             file      (dwlh/get-file state file-id)
@@ -624,7 +626,7 @@
         (log/debug :msg "UPDATE-COMPONENT finished"
                    :js/local-rchanges (log-changes
                                        local-rchanges
-                                       local-library)
+                                       file)
                    :js/rchanges (log-changes
                                  rchanges
                                  file))

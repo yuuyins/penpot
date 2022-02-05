@@ -160,7 +160,7 @@
           (if (= side :center)
             (st/emit! (dw/relocate-selected-shapes (:id item) 0))
             (let [to-index  (if (= side :top) (inc index) index)
-                  parent-id (cph/get-parent objects (:id item))]
+                  parent-id (cph/get-parent-id objects (:id item))]
               (st/emit! (dw/relocate-selected-shapes parent-id to-index)))))
 
         on-hold

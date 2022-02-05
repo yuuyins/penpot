@@ -202,8 +202,13 @@
 
 (defmethod process-change :mov-objects
   [data {:keys [parent-id shapes index page-id component-id ignore-touched]}]
-  (letfn [(is-valid-move? [objects shape-id]
-            (let [invalid-targets (cph/calculate-invalid-targets shape-id objects)]
+  (letfn [(calculate-invalid-targets [objects shape-id]
+            (let [reduce-fn #(into %1 (calculate-invalid-targets objects %2))]
+              (->> (get-in objects [shape-id :shapes])
+                   (reduce reduce-fn #{shape-id}))))
+
+          (is-valid-move? [objects shape-id]
+            (let [invalid-targets (calculate-invalid-targets objects shape-id)]
               (and (contains? objects shape-id)
                    (not (invalid-targets parent-id))
                    (cph/valid-frame-target? objects parent-id shape-id))))

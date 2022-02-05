@@ -9,7 +9,6 @@
    [app.common.data :as d]
    [app.common.geom.shapes :as gsh]
    [app.common.spec :as us]
-   [app.common.spec.interactions :as cti]
    [app.common.uuid :as uuid]
    [cuerdas.core :as str]))
 
@@ -57,36 +56,10 @@
   (let [lookup (d/getf objects)]
     (into [(lookup id)] (map lookup) (get-children-ids objects id))))
 
-;; TODO: deprecated
-(defn get-object-with-children
-  "Retrieve a vector with an object and all of its children"
-  [id objects]
-  (mapv (d/getf objects) (cons id (get-children id objects))))
-
-;; TODO: revisit this function
-
-(defn is-shape-grouped
-  "Checks if a shape is inside a group"
-  [shape-id objects]
-  (let [contains-shape-fn (fn [{:keys [shapes]}] ((set shapes) shape-id))
-        shapes (remove frame-shape? (vals objects))]
-    (some contains-shape-fn shapes)))
-
-(defn get-top-frame
-  [objects]
-  (get objects uuid/zero))
-
-;; DEPRECATED
-(defn get-parent
-  "Retrieve the id of the parent for the shape-id (if exists)"
-  [shape-id objects]
-  (let [obj (get objects shape-id)]
-    (:parent-id obj)))
-
 (defn get-parent-id
   "Retrieve the id of the parent for the shape-id (if exists)"
   [objects id]
-  (-> (get objects id) :parent-id))
+  (-> objects (get id) :parent-id))
 
 (defn get-parents
   "Return a lazy seq of parents of the specified shape."
@@ -122,7 +95,7 @@
    (let [lookup (d/getf objects)]
      (->> (lookup shape-id)
           (:shapes)
-          (mapv lookup)))))
+          (keep lookup)))))
 
 (defn get-frames
   "Retrieves all frame objects as vector. It is not implemented in
@@ -130,7 +103,7 @@
   function is executed in the render hot path."
   [objects]
   (let [lookup (d/getf objects)
-        xform  (comp (map lookup)
+        xform  (comp (keep lookup)
                      (filter frame-shape?))]
     (->> (:shapes (lookup uuid/zero))
          (into [] xform))))
@@ -144,16 +117,6 @@
           (d/seek #(and position (gsh/has-point? % position)))
           :id)
      uuid/zero)))
-
-;; TODO: looks duplicate
-
-(defn children-seq
-  "Creates a sequence of shapes through the objects tree"
-  [shape objects]
-  (let [lookup (d/getf objects)]
-    (tree-seq #(d/not-empty? (get shape :shapes))
-              #(->> (get % :shapes) (map lookup))
-              shape)))
 
 (declare indexed-shapes)
 
@@ -216,12 +179,13 @@
   ((or (:touched shape) #{}) group))
 
 (defn get-component
-  [component-id library-id local-library libraries]
-  (assert (some? (:id local-library)))
-  (let [file (if (= library-id (:id local-library))
-               local-library
-               (get-in libraries [library-id :data]))]
-    (get-in file [:components component-id])))
+  "Retrieve a component from libraries, if no library-id is provided, we
+  iterate over all libraries and find the component on it."
+  ([libraries component-id]
+   (some #(get-in libraries [%1 :components component-id]) (map :id libraries)))
+  ([libraries library-id component-id]
+   (get-in libraries [library-id :components component-id])))
+
 
 (defn is-main-of?
   [shape-main shape-inst]
@@ -235,18 +199,18 @@
 
 (defn get-component-shape
   "Get the parent shape linked to a component for this shape, if any"
-  [shape objects]
+  [objects shape]
   (if-not (:shape-ref shape)
     nil
     (if (:component-id shape)
       shape
       (if-let [parent-id (:parent-id shape)]
-        (get-component-shape (get objects parent-id) objects)
+        (get-component-shape objects (get objects parent-id))
         nil))))
 
 (defn get-root-shape
   "Get the root shape linked to a component for this shape, if any."
-  [shape objects]
+  [objects shape]
 
   (cond
     (some? (:component-root? shape))
@@ -271,11 +235,13 @@
   (= (:type container) :component))
 
 (defn get-container
-  [id type local-file]
-  (assert (some? type))
+  [file type id]
+  (us/assert keyword? type)
+  (us/assert uuid? id)
+
   (-> (if (= type :page)
-        (get-in local-file [:pages-index id])
-        (get-in local-file [:components id]))
+        (get-in file [:pages-index id])
+        (get-in file [:components id]))
       (assoc :type type)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -329,14 +295,6 @@
             (conj id)))]
 
     (reduce add-element (d/ordered-set) ids)))
-
-(defn calculate-invalid-targets
-  [shape-id objects]
-  (let [result #{shape-id}
-        children (get-in objects [shape-id :shapes])
-        reduce-fn (fn [result child-id]
-                    (into result (calculate-invalid-targets child-id objects)))]
-    (reduce reduce-fn result children)))
 
 (defn clone-object
   "Gets a copy of the object and all its children, with new ids
@@ -481,18 +439,3 @@
   [path name]
   (let [path-split (split-path path)]
     (merge-path-item (first path-split) name)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; INTERACTIONS & OTHER
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; TODO: maybe this functions are in wrong place
-
-(defn connected-frame?
-  "Check if some frame is origin or destination of any navigate interaction
-  in the page"
-  [frame-id objects]
-  (let [children (get-object-with-children frame-id objects)]
-    (or (some cti/flow-origin? (map :interactions children))
-        (some #(cti/flow-to? % frame-id) (map :interactions (vals objects))))))
-
